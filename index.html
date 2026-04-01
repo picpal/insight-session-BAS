@@ -6,7 +6,7 @@
 <title>Section 02 Presentation</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+  html, body { width: 100%; height: 100dvh; overflow: hidden; background: #000; font-family: sans-serif; }
 
   .slide {
     position: absolute; inset: 0;
@@ -17,7 +17,7 @@
   .slide.active { opacity: 1; pointer-events: auto; }
 
   .slide img {
-    max-height: 100vh;
+    max-height: 100dvh;
     max-width: 100vw;
     width: auto;
     height: auto;
@@ -464,19 +464,31 @@ videoOverlay.addEventListener('click', (e) => {
   if (e.target === videoOverlay) closeVideo();
 });
 
-// Touch swipe support
+// Touch support: swipe + tap
 let touchStartX = 0;
 let touchStartY = 0;
+let touchStartTime = 0;
 document.addEventListener('touchstart', (e) => {
   touchStartX = e.changedTouches[0].screenX;
   touchStartY = e.changedTouches[0].screenY;
+  touchStartTime = Date.now();
 }, { passive: true });
 document.addEventListener('touchend', (e) => {
   if (videoOpen || help.classList.contains('show')) return;
+  if (e.target.closest('.video-trigger') || e.target.closest('.link-trigger') || e.target.closest('#toc-trigger') || e.target.closest('#toc')) return;
   const dx = e.changedTouches[0].screenX - touchStartX;
   const dy = e.changedTouches[0].screenY - touchStartY;
-  if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
-  if (dx < 0) next(); else prev();
+  const dt = Date.now() - touchStartTime;
+  // Swipe detection
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+    if (dx < 0) next(); else prev();
+    return;
+  }
+  // Tap detection: short press, minimal movement
+  if (dt < 300 && Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+    const tapX = e.changedTouches[0].screenX;
+    if (tapX > window.innerWidth * 0.35) next(); else prev();
+  }
 }, { passive: true });
 
 // Hide cursor on idle
