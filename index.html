@@ -65,6 +65,17 @@
     max-width: 100%; max-height: 100%;
     outline: none;
   }
+  #video-close {
+    position: absolute; top: 12px; right: 12px;
+    width: 44px; height: 44px;
+    background: rgba(255,255,255,0.15);
+    border: none; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 310;
+    transition: background 0.2s;
+  }
+  #video-close:hover { background: rgba(255,255,255,0.3); }
+  #video-close svg { width: 22px; height: 22px; stroke: #fff; stroke-width: 2.5; fill: none; }
 
   /* slide counter */
   #counter {
@@ -179,6 +190,7 @@
 
 <!-- fullscreen video overlay -->
 <div id="video-overlay">
+  <button id="video-close" onclick="closeVideo()"><svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   <video id="overlay-video" playsinline></video>
 </div>
 
