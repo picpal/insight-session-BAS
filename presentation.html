@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Section 02 Presentation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+
+  .slide img {
+    height: max(100vh, 900px);
+    width: auto;
+    object-fit: contain;
+    user-select: none;
+  }
+
+  /* video overlay button */
+  .video-trigger {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 72px; height: 72px;
+    background: rgba(124, 58, 237, 0.9);
+    border: none; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s, background 0.2s;
+    z-index: 10;
+  }
+  .video-trigger:hover { transform: translate(-50%, -50%) scale(1.1); background: rgba(124, 58, 237, 1); }
+  .video-trigger svg { width: 32px; height: 32px; fill: #fff; margin-left: 4px; }
+
+  /* link button */
+  .link-trigger {
+    position: absolute; top: calc(50% + 52px); left: 50%; transform: translateX(-50%);
+    padding: 8px 20px;
+    background: rgba(124, 58, 237, 0.9);
+    border: none; border-radius: 24px; cursor: pointer;
+    color: #fff; font-size: 14px; font-weight: 500;
+    text-decoration: none;
+    display: flex; align-items: center; gap: 6px;
+    transition: transform 0.2s, background 0.2s;
+    z-index: 10;
+  }
+  .link-trigger:hover { transform: translateX(-50%) scale(1.05); background: rgba(124, 58, 237, 1); }
+  .link-trigger svg { width: 16px; height: 16px; fill: #fff; }
+
+  /* fullscreen video overlay */
+  #video-overlay {
+    position: fixed; inset: 0;
+    background: #000;
+    display: none; align-items: center; justify-content: center;
+    z-index: 300;
+  }
+  #video-overlay.show { display: flex; }
+  #video-overlay video {
+    max-width: 100%; max-height: 100%;
+    outline: none;
+  }
+
+  /* slide counter */
+  #counter {
+    position: fixed; bottom: 16px; right: 24px;
+    color: rgba(255,255,255,0.5); font-size: 14px;
+    z-index: 100; pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  /* progress bar */
+  #progress {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: #7C3AED; z-index: 100;
+    transition: width 0.3s ease;
+  }
+
+  /* help overlay */
+  #help {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200; color: #fff;
+  }
+  #help.show { display: flex; }
+  #help table { border-collapse: collapse; font-size: 18px; }
+  #help td { padding: 8px 20px; }
+  #help td:first-child { color: #7C3AED; font-weight: bold; text-align: right; }
+
+  /* table of contents */
+  #toc-trigger {
+    position: fixed; bottom: 12px; right: 12px;
+    width: 52px; height: 52px;
+    z-index: 150; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #toc-trigger:hover, #toc-trigger.active { opacity: 1; }
+  #toc-trigger svg { width: 28px; height: 28px; fill: rgba(255,255,255,0.6); }
+  #toc-trigger:hover svg { fill: #7C3AED; }
+
+  #toc {
+    position: fixed; bottom: 56px; right: 12px;
+    background: rgba(20, 20, 20, 0.95);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 12px;
+    padding: 12px 0;
+    min-width: 220px;
+    z-index: 150;
+    opacity: 0; visibility: hidden;
+    transform: translateY(8px);
+    transition: opacity 0.25s, transform 0.25s, visibility 0.25s;
+    backdrop-filter: blur(12px);
+  }
+  #toc.show { opacity: 1; visibility: visible; transform: translateY(0); }
+
+  #toc .toc-section {
+    padding: 8px 20px;
+    color: rgba(255,255,255,0.8);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #toc .toc-section:hover { background: rgba(124, 58, 237, 0.2); color: #fff; }
+  #toc .toc-section.current { color: #7C3AED; font-weight: bold; }
+  #toc .toc-section .toc-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    flex-shrink: 0;
+  }
+  #toc .toc-section.current .toc-dot { background: #7C3AED; }
+  #toc .toc-label { font-size: 11px; color: rgba(255,255,255,0.35); padding: 4px 20px 2px; pointer-events: none; }
+
+  body.idle { cursor: none; }
+  body.idle #counter { opacity: 0; }
+  body.idle #toc-trigger { opacity: 0 !important; }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div id="counter"></div>
+
+<div id="help">
+  <table>
+    <tr><td>Right / Enter / Click</td><td>다음 슬라이드</td></tr>
+    <tr><td>Left / Backspace</td><td>이전 슬라이드</td></tr>
+    <tr><td>Home</td><td>첫 슬라이드</td></tr>
+    <tr><td>End</td><td>마지막 슬라이드</td></tr>
+    <tr><td>F</td><td>전체화면 토글</td></tr>
+    <tr><td>H / ?</td><td>도움말 토글</td></tr>
+    <tr><td>Esc</td><td>도움말 / 영상 닫기</td></tr>
+  </table>
+</div>
+
+<!-- table of contents trigger -->
+<div id="toc-trigger">
+  <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+</div>
+<div id="toc"></div>
+
+<!-- fullscreen video overlay -->
+<div id="video-overlay">
+  <video id="overlay-video" playsinline></video>
+</div>
+
+<script>
+const slides = [
+  { src: 'Section00-slide_01.svg' },
+  { src: 'Section00-slide_02.svg' },
+  { src: 'Section01-slide_01.svg' },
+  { src: 'Section01-slide_02.svg' },
+  { src: 'Section01-slide_03.svg' },
+  { src: 'Section01-slide_04.svg' },
+  { src: 'Section01-slide_05.svg' },
+  { src: 'Section01-slide_06.svg' },
+  { src: 'Section01-slide_07.svg' },
+  { src: 'Section01-slide_08.svg' },
+  { src: 'Section01-slide_09.svg' },
+  { src: 'Section01-slide_10.svg' },
+  { src: 'Section01-slide_11.svg' },
+  { src: 'Section01-slide_12.svg' },
+  { src: 'Section01-slide_13.svg' },
+  { src: 'Section01-slide_14.svg' },
+  { src: 'Section02.svg' },
+  { src: 'Section02-slide_01_chatops.svg' },
+  { src: 'Section02-slide_02_chatops.svg' },
+  { src: 'Section02-slide_03_chatops.svg', video: 'Section02-chatOps-시연영상.mov', link: 'https://drive.google.com/drive/folders/1TEoMTXthCKcgMpOWbCuWRrzmM9S1LZ4L?usp=drive_link' },
+  { src: 'Section02-slide_04_chatops.svg' },
+  { src: 'Section02-slide_05_vocbot.svg' },
+  { src: 'Section02-slide_06_vocbot.svg' },
+  { src: 'Section02-slide_07_vocbot.svg', video: 'Section02-vocbot-시연영상.mov', link: 'https://drive.google.com/drive/folders/1TEoMTXthCKcgMpOWbCuWRrzmM9S1LZ4L?usp=drive_link' },
+  { src: 'Section02-slide_08_vocbot.svg' },
+  { src: 'Section02-slide_09_codereview.svg' },
+  { src: 'Section02-slide_10_codereview.svg' },
+  { src: 'Section02-slide_11_codereview.svg', video: 'Section02-codereview-시연영상.mov', link: 'https://drive.google.com/drive/folders/1TEoMTXthCKcgMpOWbCuWRrzmM9S1LZ4L?usp=drive_link' },
+  { src: 'Section02-slide_12_codereview.svg' },
+  { src: 'Section02-slide_13_payment-mcp.svg' },
+  { src: 'Section02-slide_14_payment-mcp.svg' },
+  { src: 'Section02-slide_15_payment-mcp.svg', video: 'Section02-mcp-시연영상.mp4', link: 'https://drive.google.com/drive/folders/1TEoMTXthCKcgMpOWbCuWRrzmM9S1LZ4L?usp=drive_link' },
+  { src: 'Section02-slide_16_payment-mcp.svg' },
+  { src: 'Section03-slide_01_000 1.svg' },
+  { src: 'Section03-slide_02_000 1.svg' },
+  { src: 'Section03-slide_03_000 1.svg' },
+  { src: 'Section03-slide_04_000 1.svg' },
+  { src: 'Section03-slide_05_000 1.svg' },
+  { src: 'Section03-slide_06_000 1.svg' },
+  { src: 'Section03-slide_07_000 1.svg' },
+  { src: 'Section03-slide_08_000 1.svg' },
+  { src: 'Section03-slide_09_000 1.svg' },
+  { src: 'Section03-slide_10_000 1.svg' },
+  { src: 'Section03-slide_11_000 1.svg' },
+  { src: 'Section03-slide_12_000 1.svg' },
+  { src: 'Section03-slide_13_000 1.svg' },
+  { src: 'Section03-slide_14_000 1.svg' },
+];
+
+let current = 0;
+let videoOpen = false;
+const container = document.body;
+const counter = document.getElementById('counter');
+const progress = document.getElementById('progress');
+const help = document.getElementById('help');
+const videoOverlay = document.getElementById('video-overlay');
+const overlayVideo = document.getElementById('overlay-video');
+const tocEl = document.getElementById('toc');
+const tocTrigger = document.getElementById('toc-trigger');
+
+// TOC sections definition
+const tocSections = [
+  { label: 'Intro', startIndex: 0 },
+  { label: 'AI 트렌드', startIndex: 2 },
+  { label: '적용 사례', startIndex: 16, children: [
+    { label: 'ChatOps', startIndex: 17 },
+    { label: 'VOC Bot', startIndex: 21 },
+    { label: 'Code Review', startIndex: 25 },
+    { label: 'Payment MCP', startIndex: 29 },
+  ]},
+  { label: '향후 계획', startIndex: 33 },
+];
+
+// Build TOC DOM
+function buildToc() {
+  tocSections.forEach(sec => {
+    const item = document.createElement('div');
+    item.className = 'toc-section';
+    item.dataset.index = sec.startIndex;
+    item.innerHTML = `<span class="toc-dot"></span>${sec.label}`;
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      goTo(sec.startIndex);
+      tocEl.classList.remove('show');
+      tocTrigger.classList.remove('active');
+    });
+    tocEl.appendChild(item);
+
+    if (sec.children) {
+      sec.children.forEach(child => {
+        const sub = document.createElement('div');
+        sub.className = 'toc-section';
+        sub.dataset.index = child.startIndex;
+        sub.style.paddingLeft = '36px';
+        sub.style.fontSize = '13px';
+        sub.innerHTML = `<span class="toc-dot"></span>${child.label}`;
+        sub.addEventListener('click', (e) => {
+          e.stopPropagation();
+          goTo(child.startIndex);
+          tocEl.classList.remove('show');
+          tocTrigger.classList.remove('active');
+        });
+        tocEl.appendChild(sub);
+      });
+    }
+  });
+}
+buildToc();
+
+// Toggle TOC
+tocTrigger.addEventListener('mouseenter', () => { tocTrigger.style.opacity = '1'; });
+tocTrigger.addEventListener('mouseleave', () => {
+  if (!tocEl.classList.contains('show')) tocTrigger.style.opacity = '';
+});
+tocTrigger.addEventListener('click', (e) => {
+  e.stopPropagation();
+  tocEl.classList.toggle('show');
+  tocTrigger.classList.toggle('active');
+});
+
+// Close TOC when clicking outside
+document.addEventListener('click', () => {
+  tocEl.classList.remove('show');
+  tocTrigger.classList.remove('active');
+});
+tocEl.addEventListener('click', (e) => e.stopPropagation());
+
+// Update current section highlight
+function updateTocHighlight() {
+  const allItems = tocEl.querySelectorAll('.toc-section');
+  const allSections = [];
+  tocSections.forEach(s => {
+    allSections.push(s.startIndex);
+    if (s.children) s.children.forEach(c => allSections.push(c.startIndex));
+  });
+  allSections.sort((a, b) => a - b);
+
+  let activeIndex = allSections[0];
+  for (const idx of allSections) {
+    if (current >= idx) activeIndex = idx;
+  }
+
+  allItems.forEach(item => {
+    item.classList.toggle('current', parseInt(item.dataset.index) === activeIndex);
+  });
+}
+
+// play triangle SVG icon
+const playIcon = '<svg viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>';
+
+// Build slide DOM
+const slideEls = slides.map((s, i) => {
+  const div = document.createElement('div');
+  div.className = 'slide';
+
+  const img = document.createElement('img');
+  img.src = s.src;
+  img.alt = `Slide ${i + 1}`;
+  img.draggable = false;
+  div.appendChild(img);
+
+  if (s.video) {
+    const btn = document.createElement('button');
+    btn.className = 'video-trigger';
+    btn.innerHTML = playIcon;
+    btn.title = '시연영상 재생';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openVideo(s.video);
+    });
+    div.appendChild(btn);
+  }
+
+  if (s.link) {
+    const a = document.createElement('a');
+    a.className = 'link-trigger';
+    a.href = s.link;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.innerHTML = '<svg viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>영상 파일 참고 링크';
+    a.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+    div.appendChild(a);
+  }
+
+  container.appendChild(div);
+  return div;
+});
+
+function openVideo(src) {
+  videoOpen = true;
+  overlayVideo.src = src;
+  videoOverlay.classList.add('show');
+  overlayVideo.play();
+  document.activeElement.blur();
+}
+
+function closeVideo() {
+  videoOpen = false;
+  overlayVideo.pause();
+  overlayVideo.src = '';
+  videoOverlay.classList.remove('show');
+}
+
+function goTo(index) {
+  if (index < 0 || index >= slides.length) return;
+  slideEls[current].classList.remove('active');
+  current = index;
+  slideEls[current].classList.add('active');
+  counter.textContent = `${current + 1} / ${slides.length}`;
+  progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+  updateTocHighlight();
+}
+
+function next() { goTo(current + 1); }
+function prev() { goTo(current - 1); }
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+function toggleHelp() {
+  help.classList.toggle('show');
+}
+
+// Keyboard
+document.addEventListener('keydown', (e) => {
+  // Video overlay open: Esc closes it, Space toggles play, ignore rest
+  if (videoOpen) {
+    e.preventDefault();
+    if (e.key === 'Escape') { closeVideo(); }
+    else if (e.key === ' ') { overlayVideo.paused ? overlayVideo.play() : overlayVideo.pause(); }
+    return;
+  }
+
+  if (help.classList.contains('show') && e.key !== 'Escape' && e.key !== 'h' && e.key !== '?') return;
+
+  switch (e.key) {
+    case 'ArrowRight': case 'Enter': case 'PageDown':
+      e.preventDefault(); next(); break;
+    case 'ArrowLeft': case 'Backspace': case 'PageUp':
+      e.preventDefault(); prev(); break;
+    case 'Home': e.preventDefault(); goTo(0); break;
+    case 'End': e.preventDefault(); goTo(slides.length - 1); break;
+    case 'f': case 'F':
+      e.preventDefault(); toggleFullscreen(); break;
+    case 'h': case '?':
+      e.preventDefault(); toggleHelp(); break;
+    case 'Escape':
+      if (help.classList.contains('show')) { help.classList.remove('show'); e.preventDefault(); }
+      break;
+  }
+});
+
+// Click to advance
+document.addEventListener('click', (e) => {
+  if (videoOpen) return;
+  if (help.classList.contains('show')) { help.classList.remove('show'); return; }
+  if (e.target.closest('.video-trigger')) return;
+  next();
+});
+
+// Right-click to go back
+document.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (!videoOpen) prev();
+});
+
+// Click outside video to close overlay
+videoOverlay.addEventListener('click', (e) => {
+  if (e.target === videoOverlay) closeVideo();
+});
+
+// Hide cursor on idle
+let idleTimer;
+function resetIdle() {
+  document.body.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => document.body.classList.add('idle'), 3000);
+}
+document.addEventListener('mousemove', resetIdle);
+document.addEventListener('keydown', resetIdle);
+resetIdle();
+
+// Init
+goTo(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+# Large video files exceeding GitHub 100MB limit
+Section02-chatOps-시연영상.mov
+.DS_Store
+.baton/
+.mcp.json
+.claude/
