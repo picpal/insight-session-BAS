@@ -1,5 +1,5 @@
-# Large video files exceeding GitHub 100MB limit
-Section02-chatOps-시연영상.mov
+# MOV files not browser-compatible, use converted MP4 instead
+*.mov
 .DS_Store
 .baton/
 .mcp.json
